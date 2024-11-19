@@ -74,10 +74,16 @@ function MultiVideoPage() {
       };
 
       pc.ontrack = (event) => {
-        console.log('remoteVideoRef.current.srcObject:', event.streams[0]);
+        console.log('Remote track received:', event.streams[0]);
+        console.log('Video tracks:', event.streams[0].getVideoTracks());
+
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+          remoteVideoRef.current.srcObject = event.streams[0]; // 스트림 연결
+          console.log('Remote stream set to video element');
+        } else {
+          console.error('remoteVideoRef is not initialized');
         }
+        
       };
 
       peerConnection.current = pc;
