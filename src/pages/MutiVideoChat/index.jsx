@@ -62,19 +62,34 @@ function MultiVidePage() {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
-  
-    // ICE Candidate 생성 시 Signaling Server로 전송
+    peerConnection.current = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+    
+    // Track 이벤트 처리
+    peerConnection.current.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+    
+    // ICE Connection 상태 변경 로그
+    peerConnection.current.oniceconnectionstatechange = () => {
+      console.log('ICE Connection State:', peerConnection.current.iceConnectionState);
+    };
+    
+    // ICE Candidate 처리
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('candidate', { candidate: event.candidate });
       }
     };
   
-    // 상대방의 Media Stream을 처리
+    // Remote Stream 처리
     pc.ontrack = (event) => {
       console.log('Remote track received:', event.streams[0]);
   
-      // Remote Video Element에 Stream 연결
+      // remoteVideoRef에 스트림 연결
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
       }
@@ -84,22 +99,21 @@ function MultiVidePage() {
   };
 
   const startCall = async () => {
-    createPeerConnection();
-
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
-    stream.getTracks().forEach((track) =>
-      peerConnection.current.addTrack(track, stream)
-    );
-
+  
+    // Local Video 설정
     localVideoRef.current.srcObject = stream;
-
+  
+    // Local Tracks 추가
+    stream.getTracks().forEach((track) => peerConnection.current.addTrack(track, stream));
+  
+    // Offer 생성 및 전송
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
     socket.emit('offer', { sdp: offer });
-    setIsCalling(true);
   };
   const remoteCall = async () => {
     createPeerConnection();
@@ -116,6 +130,8 @@ function MultiVidePage() {
       <button onClick={remoteCall}>Remote Call</button>
     </div>
   );
+  
+  
 }
 
 export default MultiVidePage;
