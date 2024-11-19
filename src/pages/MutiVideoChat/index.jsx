@@ -124,8 +124,24 @@ function MultiVideoPage() {
     <div>
       <h1>React WebRTC Video Chat</h1>
       <div>
-        <video ref={localVideoRef} autoPlay muted style={{ width: '300px' }} />
-        <video ref={remoteVideoRef} autoPlay style={{ width: '300px' }} />
+        <h3>Local Video</h3>
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ width: '300px', backgroundColor: 'black' }}
+        />
+      </div>
+      <div>
+        <h3>Remote Video</h3>
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          style={{ width: '300px', backgroundColor: 'black' }}
+        />
+        <button onClick={playRemoteVideo}>Play Remote Video</button>
       </div>
       <div>
         <h3>Available Users</h3>
