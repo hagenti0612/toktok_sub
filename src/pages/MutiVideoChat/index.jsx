@@ -46,7 +46,7 @@ function MultiVidePage() {
       peerConnection.current.addIceCandidate(new RTCIceCandidate(data));
     });
     socket.on('connect', () => {
-      console.log('Connected to Signaling Server:', socket.id);
+      console.log('Connected to Signaling Server2:', socket.id);
     });
     
     socket.on('disconnect', () => {
@@ -65,6 +65,7 @@ function MultiVidePage() {
   
     // ICE Candidate 처리
     pc.onicecandidate = (event) => {
+      console.log('Remote onicecandidate:', event.candidate);
       if (event.candidate) {
         socket.emit('candidate', { candidate: event.candidate });
       }
