@@ -76,10 +76,15 @@ function MultiVideoPage() {
       pc.ontrack = (event) => {
         console.log('Remote track received:', event.streams[0]);
         console.log('Video tracks:', event.streams[0].getVideoTracks());
-
+      
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0]; // 스트림 연결
+          remoteVideoRef.current.srcObject = event.streams[0];
           console.log('Remote stream set to video element');
+      
+          // 비디오 재생 시도
+          remoteVideoRef.current.play().catch((error) => {
+            console.error('Error playing remote video:', error);
+          });
         } else {
           console.error('remoteVideoRef is not initialized');
         }
@@ -88,6 +93,9 @@ function MultiVideoPage() {
 
       peerConnection.current = pc;
     }
+    peerConnection.current.oniceconnectionstatechange = () => {
+      console.log('ICE Connection State:', peerConnection.current.iceConnectionState);
+    };
   };
 
   // 사용자 목록 갱신
