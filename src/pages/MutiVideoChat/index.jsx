@@ -74,6 +74,7 @@ function MultiVideoPage() {
       };
 
       pc.ontrack = (event) => {
+        console.log('remoteVideoRef.current.srcObject:', event.streams[0]);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = event.streams[0];
         }
@@ -105,6 +106,7 @@ function MultiVideoPage() {
     });
 
     localVideoRef.current.srcObject = stream;
+    console.log('localVideoRef.current.srcObject:', stream);
 
     stream.getTracks().forEach((track) => {
       peerConnection.current.addTrack(track, stream);
