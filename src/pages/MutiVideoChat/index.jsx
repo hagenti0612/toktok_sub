@@ -84,21 +84,22 @@ function MultiVidePage() {
   };
 
   const startCall = async () => {
+    createPeerConnection();
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
-  
-    // Local Video 설정
+    stream.getTracks().forEach((track) =>
+      peerConnection.current.addTrack(track, stream)
+    );
+
     localVideoRef.current.srcObject = stream;
-  
-    // Local Tracks 추가
-    stream.getTracks().forEach((track) => peerConnection.current.addTrack(track, stream));
-  
-    // Offer 생성 및 전송
+
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
     socket.emit('offer', { sdp: offer });
+    setIsCalling(true);
   };
   const remoteCall = async () => {
     createPeerConnection();
@@ -115,8 +116,6 @@ function MultiVidePage() {
       <button onClick={remoteCall}>Remote Call</button>
     </div>
   );
-  
-  
 }
 
 export default MultiVidePage;
