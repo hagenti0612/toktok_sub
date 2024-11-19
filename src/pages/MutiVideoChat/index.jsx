@@ -61,41 +61,48 @@ function MultiVideoPage() {
 
   // PeerConnection 생성 함수
   const createPeerConnection = () => {
-    if (!peerConnection.current) {
-      const pc = new RTCPeerConnection(config);
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate && targetSocketId) {
-          socket.emit('candidate', {
-            candidate: event.candidate,
-            target: targetSocketId,
-          });
-        }
-      };
-
-      pc.ontrack = (event) => {
-        console.log('Remote track received:', event.streams[0]);
-        console.log('Video tracks:', event.streams[0].getVideoTracks());
-      
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-          console.log('Remote stream set to video element');
-      
-          // 비디오 재생 시도
-          remoteVideoRef.current.play().catch((error) => {
-            console.error('Error playing remote video:', error);
-          });
-        } else {
-          console.error('remoteVideoRef is not initialized');
-        }
-        
-      };
-
-      peerConnection.current = pc;
-    }
-    peerConnection.current.oniceconnectionstatechange = () => {
-      console.log('ICE Connection State:', peerConnection.current.iceConnectionState);
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: 'turn:your-turn-server.com:3478',
+          username: 'your-username',
+          credential: 'your-credential',
+        },
+      ],
+    });
+  
+    pc.onicecandidate = (event) => {
+      if (event.candidate && targetSocketId) {
+        socket.emit('candidate', {
+          candidate: event.candidate,
+          target: targetSocketId,
+        });
+      }
     };
+  
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE Connection State:', pc.iceConnectionState);
+  
+      if (pc.iceConnectionState === 'disconnected') {
+        console.log('Attempting to restart ICE...');
+        pc.restartIce();
+      }
+    };
+  
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        if (remoteVideoRef.current.srcObject) {
+          remoteVideoRef.current.srcObject = null;
+        }
+        remoteVideoRef.current.srcObject = event.streams[0];
+        remoteVideoRef.current.play().catch((error) => {
+          console.error('Error playing remote video:', error);
+        });
+      }
+    };
+  
+    return pc;
   };
 
   // 사용자 목록 갱신
