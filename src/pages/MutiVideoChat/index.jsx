@@ -119,6 +119,15 @@ function MultiVideoPage() {
       console.error('Error in startCall:', error);
     }
   };
+   // 원격 비디오 재생 (브라우저 자동 재생 문제 해결)
+   const playRemoteVideo = () => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.play().catch((error) => {
+        console.error('Error playing remote video:', error);
+      });
+    }
+  };
+
 
   return (
     <div>
