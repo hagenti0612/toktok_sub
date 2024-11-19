@@ -14,29 +14,37 @@ function MultiVideoPage() {
   const [targetSocketId, setTargetSocketId] = useState(null);
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate && targetSocketId) {
-        socket.emit('candidate', {
-          candidate: event.candidate,
-          target: targetSocketId,
-        });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    peerConnection.current = pc;
+    if (!peerConnection.current) {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      });
+  
+      pc.onicecandidate = (event) => {
+        if (event.candidate && targetSocketId) {
+          console.log('Sending candidate:', event.candidate);
+          socket.emit('candidate', {
+            candidate: event.candidate,
+            target: targetSocketId,
+          });
+        }
+      };
+  
+      pc.ontrack = (event) => {
+        console.log('Remote track received:', event.streams[0]);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+  
+      peerConnection.current = pc;
+    } else {
+      console.log('PeerConnection already initialized.');
+    }
   };
 
   useEffect(() => {
+    createPeerConnection();
+
     socket.on('userList', (users) => {
       setUserList(users);
     });
@@ -66,8 +74,11 @@ function MultiVideoPage() {
     });
 
     return () => {
-      socket.disconnect();
-    };
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+  };
   }, []);
 
   const refreshUserList = () => {
@@ -75,18 +86,35 @@ function MultiVideoPage() {
   };
 
   const startCall = async () => {
-    if (!targetSocketId) {
-      alert('Please select a user to call.');
-      return;
+    // PeerConnection 초기화 확인
+    if (!peerConnection.current) {
+      createPeerConnection();
     }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideoRef.current.srcObject = stream;
-    stream.getTracks().forEach((track) => peerConnection.current.addTrack(track, stream));
-
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-    socket.emit('offer', { sdp: offer, target: targetSocketId });
+  
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+  
+      console.log('Local stream acquired:', stream);
+  
+      localVideoRef.current.srcObject = stream;
+  
+      stream.getTracks().forEach((track) => {
+        console.log('Adding track:', track);
+        peerConnection.current.addTrack(track, stream); // 초기화 보장
+      });
+  
+      const offer = await peerConnection.current.createOffer();
+      console.log('Created offer:', offer);
+  
+      await peerConnection.current.setLocalDescription(offer);
+  
+      socket.emit('offer', { sdp: offer, target: targetSocketId });
+    } catch (error) {
+      console.error('Error in startCall:', error);
+    }
   };
 
   return (
