@@ -30,6 +30,8 @@ function MultiVideoPage() {
       };
   
       pc.ontrack = (event) => {
+        console.log('remoteVideoRef:', remoteVideoRef);
+        console.log('remoteVideoRef.current:', remoteVideoRef.current);
         console.log('Remote track received:', event.streams[0]);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = event.streams[0];
