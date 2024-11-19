@@ -73,11 +73,17 @@ function MultiVideoPage() {
         }
       };
 
-      pc.ontrack = (event) => {
+      peerConnection.current.ontrack = (event) => {
         console.log('Remote track received:', event.streams[0]);
         console.log('Video tracks:', event.streams[0].getVideoTracks());
       
         if (remoteVideoRef.current) {
+          // 이전 스트림 정리
+          if (remoteVideoRef.current.srcObject) {
+            remoteVideoRef.current.srcObject = null;
+          }
+      
+          // 새 스트림 연결
           remoteVideoRef.current.srcObject = event.streams[0];
           console.log('Remote stream set to video element');
       
@@ -88,7 +94,6 @@ function MultiVideoPage() {
         } else {
           console.error('remoteVideoRef is not initialized');
         }
-        
       };
 
       peerConnection.current = pc;
