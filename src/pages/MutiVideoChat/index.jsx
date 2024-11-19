@@ -62,22 +62,7 @@ function MultiVidePage() {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
-    peerConnection.current = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
-    
-    // Track 이벤트 처리
-    peerConnection.current.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-    
-    // ICE Connection 상태 변경 로그
-    peerConnection.current.oniceconnectionstatechange = () => {
-      console.log('ICE Connection State:', peerConnection.current.iceConnectionState);
-    };
-    
+  
     // ICE Candidate 처리
     pc.onicecandidate = (event) => {
       if (event.candidate) {
