@@ -15,6 +15,10 @@ function MultiVideoPage() {
   const [targetSocketId, setTargetSocketId] = useState(null);
 
   useEffect(() => {
+    if (!peerConnection.current) {
+      createPeerConnection();
+    }
+
     socket.on('userList', (users) => {
       console.log('User List:', users);
       setUserList(users);
@@ -59,61 +63,70 @@ function MultiVideoPage() {
     });
 
     return () => {
-      socket.disconnect();
+    // PeerConnection 정리
+      if (peerConnection.current) {
+        peerConnection.current.close();
+        peerConnection.current = null;
+      }
     };
   }, []);
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('Sending Candidate:', event.candidate);
-        if (targetSocketId) {
-          socket.emit('candidate', {
-            candidate: event.candidate,
-            target: targetSocketId,
-          });
-        } else {
-          console.error('Target ID is not set. Unable to send candidate.');
+    if (!peerConnection.current) {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      });
+  
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log('Sending Candidate:', event.candidate);
+          if (targetSocketId) {
+            socket.emit('candidate', {
+              candidate: event.candidate,
+              target: targetSocketId,
+            });
+          }
         }
-      }
-    };
-
-    pc.ontrack = (event) => {
-      console.log('Remote track received:', event.streams[0]);
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    peerConnection.current = pc;
+      };
+  
+      pc.ontrack = (event) => {
+        console.log('Remote track received:', event.streams[0]);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+  
+      peerConnection.current = pc; // 초기화 완료
+    } else {
+      console.log('PeerConnection already exists');
+    }
   };
 
   const startCall = async () => {
-    if (!targetSocketId) {
-      alert('Please select a user to call.');
-      return;
+    // PeerConnection 초기화 확인
+    if (!peerConnection.current) {
+      createPeerConnection();
     }
-
+  
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
-
+  
     localVideoRef.current.srcObject = stream;
-
+  
+    // Add tracks to PeerConnection
     stream.getTracks().forEach((track) => {
       peerConnection.current.addTrack(track, stream);
     });
-
+  
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
-
+  
+    // Offer 전송 시 자신의 ID를 저장
     socket.emit('offer', { sdp: offer, target: targetSocketId });
   };
+  
 
   return (
     <div>
