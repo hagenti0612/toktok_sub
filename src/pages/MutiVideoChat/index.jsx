@@ -19,18 +19,25 @@ function MultiVidePage() {
 
   useEffect(() => {
     socket.on('offer', async (data) => {
-      if (!peerConnection.current) createPeerConnection();
-  
-      // 상대방의 Offer를 설정
+      console.log('Received Offer:', data);
+    
+      // PeerConnection이 없으면 생성
+      if (!peerConnection.current) {
+        createPeerConnection();
+      }
+    
+      // Offer를 Remote Description으로 설정
       await peerConnection.current.setRemoteDescription(
         new RTCSessionDescription(data.sdp)
       );
-  
-      // Answer 생성 및 설정
+    
+      // Answer 생성
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
-  
-      // Answer를 Signaling Server로 전송
+    
+      console.log('Sending Answer:', answer);
+    
+      // Signaling Server로 Answer 전송
       socket.emit('answer', { sdp: answer, target: data.caller });
     });
   
