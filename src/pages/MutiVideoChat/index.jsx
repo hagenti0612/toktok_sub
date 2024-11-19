@@ -21,32 +21,31 @@ function MultiVidePage() {
     socket.on('offer', async (data) => {
       console.log('Received Offer:', data);
     
-      // PeerConnection이 없으면 생성
-      if (!peerConnection.current) {
-        createPeerConnection();
-      }
+      if (!peerConnection.current) createPeerConnection();
     
-      // Offer를 Remote Description으로 설정
       await peerConnection.current.setRemoteDescription(
         new RTCSessionDescription(data.sdp)
       );
     
-      // Answer 생성
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
     
-      console.log('Sending Answer:', answer);
-    
-      // Signaling Server로 Answer 전송
+      // Answer 전송 시 caller의 ID를 저장
       socket.emit('answer', { sdp: answer, target: data.caller });
     });
+    
   
     socket.on('answer', async (data) => {
-      // 상대방의 Answer를 설정
+      console.log('Received Answer:', data);
+    
       await peerConnection.current.setRemoteDescription(
         new RTCSessionDescription(data.sdp)
       );
+    
+      // 상대방의 ID 저장
+      currentTargetId = data.caller;
     });
+    
   
     socket.on('candidate', (data) => {
       // ICE Candidate를 추가
@@ -72,9 +71,19 @@ function MultiVidePage() {
   
     // ICE Candidate 처리
     pc.onicecandidate = (event) => {
-      console.log('Remote onicecandidate:', event.candidate);
       if (event.candidate) {
-        socket.emit('candidate', { candidate: event.candidate });
+        console.log('Sending candidate:', event.candidate);
+    
+        // 상대방의 ID(target)를 지정
+        const targetId = currentTargetId; // Offer/Answer 교환 후 설정
+        if (targetId) {
+          socket.emit('candidate', {
+            candidate: event.candidate,
+            target: targetId,
+          });
+        } else {
+          console.error('Target ID is not set. Unable to send candidate.');
+        }
       }
     };
   
@@ -92,22 +101,22 @@ function MultiVidePage() {
   };
 
   const startCall = async () => {
-    createPeerConnection();
-
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
-    stream.getTracks().forEach((track) =>
-      peerConnection.current.addTrack(track, stream)
-    );
-
+  
     localVideoRef.current.srcObject = stream;
-
+  
+    stream.getTracks().forEach((track) => {
+      peerConnection.current.addTrack(track, stream);
+    });
+  
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
-    socket.emit('offer', { sdp: offer });
-    setIsCalling(true);
+  
+    // Offer 전송 시 자신의 ID를 저장
+    socket.emit('offer', { sdp: offer, target: targetSocketId });
   };
   const remoteCall = async () => {
     createPeerConnection();
