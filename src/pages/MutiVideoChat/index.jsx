@@ -117,25 +117,35 @@ function MultiVideoPage() {
       return;
     }
 
-    if (!peerConnection.current) {
-      createPeerConnection();
-    }
+    // PeerConnection 초기화 확인
+  if (!peerConnection.current) {
+    createPeerConnection();
+  }
 
+  try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
+    console.log('Local stream acquired:', stream);
+
     localVideoRef.current.srcObject = stream;
-    console.log('localVideoRef.current.srcObject:', stream);
 
     stream.getTracks().forEach((track) => {
-      peerConnection.current.addTrack(track, stream);
+      console.log('Adding track:', track);
+      peerConnection.current.addTrack(track, stream); // 초기화 보장
     });
 
     const offer = await peerConnection.current.createOffer();
+    console.log('Created offer:', offer);
+
     await peerConnection.current.setLocalDescription(offer);
+
     socket.emit('offer', { sdp: offer, target: targetSocketId });
+  } catch (error) {
+    console.error('Error in startCall:', error);
+  }
   };
 
   // 원격 비디오 재생 (브라우저 자동 재생 문제 해결)
