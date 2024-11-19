@@ -7,53 +7,26 @@ const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure:
 
 
 function MultiVideoPage() {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const peerConnection = useRef(null);
-  const [userList, setUserList] = useState([]);
-  const [targetSocketId, setTargetSocketId] = useState(null);
+  const localVideoRef = useRef(null); // 로컬 비디오 참조
+  const remoteVideoRef = useRef(null); // 원격 비디오 참조
+  const peerConnection = useRef(null); // RTCPeerConnection 객체 참조
+  const [userList, setUserList] = useState([]); // 연결된 사용자 목록
+  const [targetSocketId, setTargetSocketId] = useState(null); // 선택된 상대방의 Socket ID
 
-  const createPeerConnection = () => {
-    if (!peerConnection.current) {
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-  
-      pc.onicecandidate = (event) => {
-        if (event.candidate && targetSocketId) {
-          console.log('Sending candidate:', event.candidate);
-          socket.emit('candidate', {
-            candidate: event.candidate,
-            target: targetSocketId,
-          });
-        }
-      };
-  
-      pc.ontrack = (event) => {
-        console.log('remoteVideoRef:', remoteVideoRef);
-        console.log('remoteVideoRef.current:', remoteVideoRef.current);
-        console.log('Remote track received:', event.streams[0]);
-        if (remoteVideoRef.current) {
-          console.log('remoteVideoRef.current.srcObject:', event.streams);
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-  
-      peerConnection.current = pc;
-    } else {
-      console.log('PeerConnection already initialized.');
-    }
+  // STUN 서버 설정
+  const config = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
   };
 
   useEffect(() => {
-    createPeerConnection();
-
+    // Signaling Server 이벤트 설정
     socket.on('userList', (users) => {
       setUserList(users);
     });
 
     socket.on('offer', async (data) => {
       if (!peerConnection.current) createPeerConnection();
+
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
@@ -77,57 +50,79 @@ function MultiVideoPage() {
     });
 
     return () => {
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-  };
+      // 컴포넌트 언마운트 시 정리
+      socket.disconnect();
+      if (peerConnection.current) {
+        peerConnection.current.close();
+        peerConnection.current = null;
+      }
+    };
   }, []);
 
+  // PeerConnection 생성 함수
+  const createPeerConnection = () => {
+    if (!peerConnection.current) {
+      const pc = new RTCPeerConnection(config);
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && targetSocketId) {
+          socket.emit('candidate', {
+            candidate: event.candidate,
+            target: targetSocketId,
+          });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      peerConnection.current = pc;
+    }
+  };
+
+  // 사용자 목록 갱신
   const refreshUserList = () => {
     socket.emit('getUsers');
   };
 
+  // 통화 시작
   const startCall = async () => {
-    // PeerConnection 초기화 확인
+    if (!targetSocketId) {
+      alert('Please select a user to call.');
+      return;
+    }
+
     if (!peerConnection.current) {
       createPeerConnection();
     }
-  
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-  
-      console.log('Local stream acquired:', stream);
-  
-      localVideoRef.current.srcObject = stream;
-  
-      stream.getTracks().forEach((track) => {
-        console.log('Adding track:', track);
-        peerConnection.current.addTrack(track, stream); // 초기화 보장
-      });
-  
-      const offer = await peerConnection.current.createOffer();
-      console.log('Created offer:', offer);
-  
-      await peerConnection.current.setLocalDescription(offer);
-  
-      socket.emit('offer', { sdp: offer, target: targetSocketId });
-    } catch (error) {
-      console.error('Error in startCall:', error);
-    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    localVideoRef.current.srcObject = stream;
+
+    stream.getTracks().forEach((track) => {
+      peerConnection.current.addTrack(track, stream);
+    });
+
+    const offer = await peerConnection.current.createOffer();
+    await peerConnection.current.setLocalDescription(offer);
+    socket.emit('offer', { sdp: offer, target: targetSocketId });
   };
-   // 원격 비디오 재생 (브라우저 자동 재생 문제 해결)
-   const playRemoteVideo = () => {
+
+  // 원격 비디오 재생 (브라우저 자동 재생 문제 해결)
+  const playRemoteVideo = () => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.play().catch((error) => {
         console.error('Error playing remote video:', error);
       });
     }
   };
-
 
   return (
     <div>
@@ -157,7 +152,14 @@ function MultiVideoPage() {
         <button onClick={refreshUserList}>Refresh User List</button>
         <ul>
           {userList.map((userId) => (
-            <li key={userId} onClick={() => setTargetSocketId(userId)} style={{ cursor: 'pointer' }}>
+            <li
+              key={userId}
+              onClick={() => setTargetSocketId(userId)}
+              style={{
+                cursor: 'pointer',
+                color: targetSocketId === userId ? 'blue' : 'black',
+              }}
+            >
               {userId} {targetSocketId === userId && '(Selected)'}
             </li>
           ))}
