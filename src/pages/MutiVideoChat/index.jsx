@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 
 //const socket = io('https://10.80.163.113:3001/');
 //const socket = io('https://192.168.0.123:3001/');
-const socket = io('https://192.168.0.123:3001', { secure: true });
+const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
 
 
 
