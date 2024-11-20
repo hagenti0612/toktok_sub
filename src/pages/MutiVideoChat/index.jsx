@@ -25,6 +25,7 @@ function MultiVideoPage() {
   };
 
   useEffect(() => {
+    // Signaling Server 이벤트 설정
     socket.on('userList', (users) => {
       setUserList(users);
     });
@@ -57,7 +58,14 @@ function MultiVideoPage() {
       socket.emit('getUsers');
     });
 
+    // 자동 갱신 타이머 설정
+    const intervalId = setInterval(() => {
+      refreshUserList();
+    }, 5000); // 5초마다 갱신
+
+    // 클린업: 타이머 제거 및 리소스 정리
     return () => {
+      clearInterval(intervalId);
       socket.disconnect();
       if (peerConnection.current) {
         peerConnection.current.close();
@@ -173,7 +181,6 @@ function MultiVideoPage() {
       </div>
       <div>
         <h3>Available Users</h3>
-        <button onClick={refreshUserList}>Refresh User List</button>
         <ul>
           {userList.map((userId) => (
             <li
