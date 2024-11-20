@@ -12,6 +12,7 @@ function MultiVideoPage() {
   const peerConnection = useRef(null);
   const [userList, setUserList] = useState([]);
   const [targetSocketId, setTargetSocketId] = useState(null);
+  const [selectedStream, setSelectedStream] = useState(null); // 선택된 원격 스트림
 
   const config = {
     iceServers: [
@@ -27,7 +28,6 @@ function MultiVideoPage() {
 
 
   useEffect(() => {
-    // Signaling Server 이벤트 설정
     socket.on('userList', (users) => {
       setUserList(users);
     });
@@ -65,7 +65,6 @@ function MultiVideoPage() {
       refreshUserList();
     }, 5000); // 5초마다 갱신
 
-    // 클린업: 타이머 제거 및 리소스 정리
     return () => {
       clearInterval(intervalId);
       socket.disconnect();
@@ -99,15 +98,8 @@ function MultiVideoPage() {
       };
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          if (remoteVideoRef.current.srcObject) {
-            remoteVideoRef.current.srcObject = null;
-          }
-          remoteVideoRef.current.srcObject = event.streams[0];
-          remoteVideoRef.current.play().catch((error) => {
-            console.error('Error playing remote video:', error);
-          });
-        }
+        console.log('Remote track received:', event.streams[0]);
+        setSelectedStream(event.streams[0]); // 원격 스트림 저장
       };
 
       peerConnection.current = pc;
@@ -150,8 +142,27 @@ function MultiVideoPage() {
     }
   };
 
+  const switchUser = (userId) => {
+    if (userId === targetSocketId) {
+      alert('You are already connected to this user.');
+      return;
+    }
+
+    setTargetSocketId(userId);
+    setSelectedStream(null);
+
+    // 재연결 로직
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    createPeerConnection();
+    startCall();
+  };
+
   const playRemoteVideo = () => {
-    if (remoteVideoRef.current) {
+    if (remoteVideoRef.current && selectedStream) {
+      remoteVideoRef.current.srcObject = selectedStream;
       remoteVideoRef.current.play().catch((error) => {
         console.error('Error playing remote video manually:', error);
       });
@@ -188,7 +199,7 @@ function MultiVideoPage() {
           {userList.map((userId) => (
             <li
               key={userId}
-              onClick={() => setTargetSocketId(userId)}
+              onClick={() => switchUser(userId)}
               style={{
                 cursor: 'pointer',
                 color: targetSocketId === userId ? 'blue' : 'black',
