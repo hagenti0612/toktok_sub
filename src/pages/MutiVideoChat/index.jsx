@@ -23,31 +23,33 @@ function MultiVideoPage() {
     ],
   };
 
+
+
   useEffect(() => {
     socket.on('userList', (users) => {
       setUserList(users);
     });
 
-    socket.on('offer', async ({ sdp, caller }) => {
-      const pc = createPeerConnection(caller);
-      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('answer', { sdp: answer, target: caller });
+    socket.on('offer', async (data) => {
+      if (!peerConnection.current) createPeerConnection();
+
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      socket.emit('answer', { sdp: answer, target: data.caller });
+      setTargetSocketId(data.caller);
     });
 
-    socket.on('answer', async ({ sdp, caller }) => {
-      const pc = peerConnections[caller];
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    socket.on('answer', async (data) => {
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
       }
     });
 
-    socket.on('candidate', ({ candidate, caller }) => {
-      const pc = peerConnections[caller];
-      if (pc) {
-        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((error) => {
-          console.error('Error adding ICE Candidate:', error);
+    socket.on('candidate', (data) => {
+      if (peerConnection.current) {
+        peerConnection.current.addIceCandidate(new RTCIceCandidate(data.candidate)).catch((error) => {
+          console.error('Error adding received ICE Candidate:', error);
         });
       }
     });
@@ -56,53 +58,66 @@ function MultiVideoPage() {
       socket.emit('getUsers');
     });
 
+    // 자동 갱신 타이머 설정
+    const intervalId = setInterval(() => {
+      refreshUserList();
+    }, 5000); // 5초마다 갱신
+
     return () => {
-      Object.values(peerConnections).forEach((pc) => pc.close());
-      setPeerConnections({});
+      clearInterval(intervalId);
       socket.disconnect();
-    };
-  }, [peerConnections]);
-
-  const createPeerConnection = (userId) => {
-    const pc = new RTCPeerConnection(config);
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit('candidate', { candidate: event.candidate, target: userId });
+      if (peerConnection.current) {
+        peerConnection.current.close();
+        peerConnection.current = null;
       }
     };
+  }, []);
 
-    pc.ontrack = (event) => {
-      addRemoteStream(event.streams[0], userId);
-    };
+  const createPeerConnection = () => {
+    if (!peerConnection.current) {
+      const pc = new RTCPeerConnection(config);
 
-    if (localStream.current) {
-      localStream.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStream.current);
-      });
+      pc.onicecandidate = (event) => {
+        if (event.candidate && targetSocketId) {
+          socket.emit('candidate', {
+            candidate: event.candidate,
+            target: targetSocketId,
+          });
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('ICE Connection State:', pc.iceConnectionState);
+
+        if (pc.iceConnectionState === 'disconnected') {
+          console.log('Attempting to restart ICE...');
+          pc.restartIce();
+        }
+      };
+
+      pc.ontrack = (event) => {
+        console.log('Remote track received:', event.streams[0]);
+        setSelectedStream(event.streams[0]); // 원격 스트림 저장
+      };
+
+      peerConnection.current = pc;
     }
-
-    setPeerConnections((prev) => ({ ...prev, [userId]: pc }));
-    return pc;
   };
 
-  const addRemoteStream = (stream, userId) => {
-    const videoContainer = document.getElementById('remoteVideos');
-    let videoElement = document.getElementById(`video-${userId}`);
-
-    if (!videoElement) {
-      videoElement = document.createElement('video');
-      videoElement.id = `video-${userId}`;
-      videoElement.autoplay = true;
-      videoElement.playsInline = true;
-      videoElement.style.width = '300px';
-      videoContainer.appendChild(videoElement);
-    }
-
-    videoElement.srcObject = stream;
+  const refreshUserList = () => {
+    socket.emit('getUsers');
   };
 
   const startCall = async () => {
+    if (!targetSocketId) {
+      alert('Please select a user to call.');
+      return;
+    }
+
+    if (!peerConnection.current) {
+      createPeerConnection();
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -110,29 +125,51 @@ function MultiVideoPage() {
       });
 
       localVideoRef.current.srcObject = stream;
-      localStream.current = stream;
 
-      userList.forEach((userId) => {
-        if (!peerConnections[userId]) {
-          const pc = createPeerConnection(userId);
-          pc.createOffer()
-            .then((offer) => {
-              pc.setLocalDescription(offer);
-              socket.emit('offer', { sdp: offer, target: userId });
-            })
-            .catch((error) => {
-              console.error('Error creating offer:', error);
-            });
-        }
+      stream.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, stream);
       });
+
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+
+      socket.emit('offer', { sdp: offer, target: targetSocketId });
     } catch (error) {
       console.error('Error accessing media devices:', error);
+      alert('Could not access your camera and microphone. Please check your browser settings.');
+    }
+  };
+
+  const switchUser = (userId) => {
+    if (userId === targetSocketId) {
+      alert('You are already connected to this user.');
+      return;
+    }
+
+    setTargetSocketId(userId);
+    setSelectedStream(null);
+
+    // 재연결 로직
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    createPeerConnection();
+    startCall();
+  };
+
+  const playRemoteVideo = () => {
+    if (remoteVideoRef.current && selectedStream) {
+      remoteVideoRef.current.srcObject = selectedStream;
+      remoteVideoRef.current.play().catch((error) => {
+        console.error('Error playing remote video manually:', error);
+      });
     }
   };
 
   return (
     <div>
-      <h1>React WebRTC Multi-User Video Chat</h1>
+      <h1>React WebRTC Video Chat</h1>
       <div>
         <h3>Local Video</h3>
         <video
@@ -144,16 +181,29 @@ function MultiVideoPage() {
         />
       </div>
       <div>
-        <h3>Remote Videos</h3>
-        <div id="remoteVideos" style={{ display: 'flex', flexWrap: 'wrap' }}></div>
+        <h3>Remote Video</h3>
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          style={{ width: '300px', backgroundColor: 'black' }}
+        />
+        <button onClick={playRemoteVideo}>Play Remote Video</button>
       </div>
       <div>
         <h3>Available Users</h3>
-        <button onClick={() => socket.emit('getUsers')}>Refresh User List</button>
+        <button onClick={refreshUserList}>Refresh User List</button>
         <ul>
           {userList.map((userId) => (
-            <li key={userId} style={{ cursor: 'pointer' }}>
-              {userId}
+            <li
+              key={userId}
+              onClick={() => switchUser(userId)}
+              style={{
+                cursor: 'pointer',
+                color: targetSocketId === userId ? 'blue' : 'black',
+              }}
+            >
+              {userId} {targetSocketId === userId && '(Selected)'}
             </li>
           ))}
         </ul>
