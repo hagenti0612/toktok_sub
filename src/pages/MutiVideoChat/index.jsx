@@ -8,9 +8,11 @@ const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure:
 
 function MultiVideoPage() {
   const localVideoRef = useRef(null);
-  const [peerConnections, setPeerConnections] = useState({});
+  const remoteVideoRef = useRef(null);
+  const peerConnection = useRef(null);
   const [userList, setUserList] = useState([]);
-  const localStream = useRef(null); // 로컬 스트림 참조
+  const [targetSocketId, setTargetSocketId] = useState(null);
+  const [selectedStream, setSelectedStream] = useState(null); // 선택된 원격 스트림
 
   const config = {
     iceServers: [
