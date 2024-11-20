@@ -24,6 +24,8 @@ function MultiVideoPage() {
     ],
   };
 
+
+
   useEffect(() => {
     // Signaling Server 이벤트 설정
     socket.on('userList', (users) => {
@@ -181,6 +183,7 @@ function MultiVideoPage() {
       </div>
       <div>
         <h3>Available Users</h3>
+        <button onClick={refreshUserList}>Refresh User List</button>
         <ul>
           {userList.map((userId) => (
             <li
