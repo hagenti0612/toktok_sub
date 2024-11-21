@@ -32,7 +32,9 @@ function MultiVideoPage() {
     });
 
     socket.on('offer', async (data) => {
-      if (!peerConnection.current) createPeerConnection();
+      if (!peerConnection.current) {
+        createPeerConnection(data.caller);
+      }
 
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
       const answer = await peerConnection.current.createAnswer();
@@ -70,39 +72,43 @@ function MultiVideoPage() {
     };
   }, []);
 
-  const createPeerConnection = () => {
-    if (!peerConnection.current) {
-      const pc = new RTCPeerConnection(config);
+  const createPeerConnection = (userId) => {
+    const pc = new RTCPeerConnection(config);
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate && targetSocketId) {
-          socket.emit('candidate', {
-            candidate: event.candidate,
-            target: targetSocketId,
-          });
-        }
-      };
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('candidate', {
+          candidate: event.candidate,
+          target: userId,
+        });
+      }
+    };
 
-      pc.oniceconnectionstatechange = () => {
-        console.log('ICE Connection State:', pc.iceConnectionState);
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE Connection State:', pc.iceConnectionState);
 
-        if (pc.iceConnectionState === 'disconnected') {
-          console.log('Attempting to restart ICE...');
-          pc.restartIce();
-        }
-      };
+      if (pc.iceConnectionState === 'disconnected') {
+        console.log('Attempting to restart ICE...');
+        pc.restartIce();
+      }
+    };
 
-      pc.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-          remoteVideoRef.current.play().catch((error) => {
-            console.error('Error playing remote video:', error);
-          });
-        }
-      };
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+        remoteVideoRef.current.play().catch((error) => {
+          console.error('Error playing remote video:', error);
+        });
+      }
+    };
 
-      peerConnection.current = pc;
+    if (localStream.current) {
+      localStream.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream.current);
+      });
     }
+
+    peerConnection.current = pc;
   };
 
   const refreshUserList = () => {
@@ -116,7 +122,7 @@ function MultiVideoPage() {
     }
 
     if (!peerConnection.current) {
-      createPeerConnection();
+      createPeerConnection(targetSocketId);
     }
 
     try {
