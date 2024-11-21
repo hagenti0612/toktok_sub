@@ -9,10 +9,11 @@ function MultiVideoPage() {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
-  const localStream = useRef(null); // 로컬 스트림 참조
+  const localStream = useRef(null);
   const [userList, setUserList] = useState([]);
+  const [connectedUsers, setConnectedUsers] = useState([]); // 연결된 유저 목록
   const [targetSocketId, setTargetSocketId] = useState(null);
-  const [isLocalVideoOn, setIsLocalVideoOn] = useState(true); // 로컬 비디오 상태
+  const [isLocalVideoOn, setIsLocalVideoOn] = useState(true);
 
   const config = {
     iceServers: [
@@ -37,12 +38,14 @@ function MultiVideoPage() {
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
       socket.emit('answer', { sdp: answer, target: data.caller });
-      setTargetSocketId(data.caller);
+
+      setConnectedUsers((prev) => [...prev, data.caller]); // 연결된 유저 추가
     });
 
     socket.on('answer', async (data) => {
       if (peerConnection.current) {
         await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        setConnectedUsers((prev) => [...prev, data.caller]); // 연결된 유저 추가
       }
     });
 
@@ -133,27 +136,12 @@ function MultiVideoPage() {
       await peerConnection.current.setLocalDescription(offer);
 
       socket.emit('offer', { sdp: offer, target: targetSocketId });
+
+      setConnectedUsers((prev) => [...prev, targetSocketId]); // 연결된 유저 추가
     } catch (error) {
       console.error('Error accessing media devices:', error);
       alert('Could not access your camera and microphone. Please check your browser settings.');
     }
-  };
-
-  const switchUser = (userId) => {
-    if (userId === targetSocketId) {
-      alert('You are already connected to this user.');
-      return;
-    }
-
-    setTargetSocketId(userId);
-
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-
-    createPeerConnection();
-    startCall();
   };
 
   const toggleLocalVideo = () => {
@@ -206,18 +194,21 @@ function MultiVideoPage() {
           {userList.map((userId) => (
             <li
               key={userId}
-              onClick={() => switchUser(userId)}
+              onClick={() => !connectedUsers.includes(userId) && setTargetSocketId(userId)}
               style={{
-                cursor: 'pointer',
-                color: targetSocketId === userId ? 'blue' : 'black',
+                cursor: connectedUsers.includes(userId) ? 'not-allowed' : 'pointer',
+                color: connectedUsers.includes(userId) ? 'gray' : 'black',
+                textDecoration: connectedUsers.includes(userId) ? 'line-through' : 'none',
               }}
             >
-              {userId} {targetSocketId === userId && '(Selected)'}
+              {userId} {connectedUsers.includes(userId) && '(Connected)'}
             </li>
           ))}
         </ul>
       </div>
-      <button onClick={startCall}>Start Call</button>
+      <button onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
+        Start Call
+      </button>
     </div>
   );
 }
