@@ -5,14 +5,14 @@ import io from 'socket.io-client';
 //const socket = io('https://192.168.0.123:3001/');
 const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
 
-
 function MultiVideoPage() {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnection = useRef(null);
+  const localStream = useRef(null); // 로컬 스트림 참조
   const [userList, setUserList] = useState([]);
   const [targetSocketId, setTargetSocketId] = useState(null);
-  const [selectedStream, setSelectedStream] = useState(null); // 선택된 원격 스트림
+  const [isLocalVideoOn, setIsLocalVideoOn] = useState(true); // 로컬 비디오 상태
 
   const config = {
     iceServers: [
@@ -24,8 +24,6 @@ function MultiVideoPage() {
       },
     ],
   };
-
-
 
   useEffect(() => {
     socket.on('userList', (users) => {
@@ -60,13 +58,7 @@ function MultiVideoPage() {
       socket.emit('getUsers');
     });
 
-    // 자동 갱신 타이머 설정
-    const intervalId = setInterval(() => {
-      refreshUserList();
-    }, 5000); // 5초마다 갱신
-
     return () => {
-      clearInterval(intervalId);
       socket.disconnect();
       if (peerConnection.current) {
         peerConnection.current.close();
@@ -98,8 +90,12 @@ function MultiVideoPage() {
       };
 
       pc.ontrack = (event) => {
-        console.log('Remote track received:', event.streams[0]);
-        setSelectedStream(event.streams[0]); // 원격 스트림 저장
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          remoteVideoRef.current.play().catch((error) => {
+            console.error('Error playing remote video:', error);
+          });
+        }
       };
 
       peerConnection.current = pc;
@@ -127,6 +123,7 @@ function MultiVideoPage() {
       });
 
       localVideoRef.current.srcObject = stream;
+      localStream.current = stream;
 
       stream.getTracks().forEach((track) => {
         peerConnection.current.addTrack(track, stream);
@@ -149,20 +146,27 @@ function MultiVideoPage() {
     }
 
     setTargetSocketId(userId);
-    setSelectedStream(null);
 
-    // 재연결 로직
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = null;
     }
+
     createPeerConnection();
     startCall();
   };
 
+  const toggleLocalVideo = () => {
+    if (localStream.current) {
+      localStream.current.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsLocalVideoOn((prevState) => !prevState);
+    }
+  };
+
   const playRemoteVideo = () => {
-    if (remoteVideoRef.current && selectedStream) {
-      remoteVideoRef.current.srcObject = selectedStream;
+    if (remoteVideoRef.current) {
       remoteVideoRef.current.play().catch((error) => {
         console.error('Error playing remote video manually:', error);
       });
@@ -181,6 +185,9 @@ function MultiVideoPage() {
           playsInline
           style={{ width: '300px', backgroundColor: 'black' }}
         />
+        <button onClick={toggleLocalVideo}>
+          {isLocalVideoOn ? 'Turn Off Video' : 'Turn On Video'}
+        </button>
       </div>
       <div>
         <h3>Remote Video</h3>
