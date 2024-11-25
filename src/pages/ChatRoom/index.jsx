@@ -1,21 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  BsCameraVideoFill,
-  BsCameraVideoOffFill,
-  BsFillMicFill,
-  BsFillMicMuteFill,
-  BsFillChatFill,
-  BsHeartFill,
-} from "react-icons/bs";
-import * as S from "./style";
+import * as S from "./style"; // 스타일 컴포넌트 가져오기
 import io from "socket.io-client";
-
 
 const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
 
 const ChatRoom = () => {
-  const navigate = useNavigate();
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localStream = useRef(null);
@@ -29,27 +18,18 @@ const ChatRoom = () => {
   const [targetSocketId, setTargetSocketId] = useState(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  
 
   const config = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       {
-        urls: 'turn:43.203.120.136:3478',
-        username: 'toktok',
-        credential: 'toktok1234!',
+        urls: 'turn:your-turn-server.com:3478',
+        username: 'your-username',
+        credential: 'your-credential',
       },
     ],
   };
 
-  React.useEffect(() => {
-    // 예제 데이터: 실제 소켓 통신 사용
-    setUserList(["user1", "user2", "user3"]);
-  }, []);
-  
   useEffect(() => {
     socket.on("userList", (users) => setUserList(users));
     socket.on("offer", handleOffer);
@@ -149,77 +129,52 @@ const ChatRoom = () => {
 
   return (
     <S.Container>
-      <S.VideoSection>
-        <S.MainContent>
-          <S.RemoteVideoContainer>
-            <video ref={remoteVideoRef} playsInline />
-            <S.TimeDisplay>{elapsedTime}s</S.TimeDisplay>
-          </S.RemoteVideoContainer>
+      <S.MainContent>
+        <S.RemoteVideoContainer>
+          <video ref={remoteVideoRef} playsInline />
+        </S.RemoteVideoContainer>
 
-          <S.LocalVideoContainer
-            $position={localVideoPosition || { x: 40, y: 40 }}
-            $isDragging={isDragging || false}
-            onMouseDown={(e) => {
+        <S.LocalVideoContainer
+          $position={localVideoPosition || { x: 40, y: 40 }}
+          $isDragging={isDragging || false}
+          onMouseDown={(e) => {
+            const { clientX, clientY } = e;
+            setIsDragging(true);
+            setDragStart({ x: clientX - localVideoPosition.x, y: clientY - localVideoPosition.y });
+          }}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseMove={(e) => {
+            if (isDragging) {
               const { clientX, clientY } = e;
-              setIsDragging(true);
-              setDragStart({ x: clientX - localVideoPosition.x, y: clientY - localVideoPosition.y });
-            }}
-            onMouseUp={() => setIsDragging(false)}
-            onMouseMove={(e) => {
-              if (isDragging) {
-                const { clientX, clientY } = e;
-                setLocalVideoPosition({ x: clientX - dragStart.x, y: clientY - dragStart.y });
-              }
-            }}
-          >
-            {localStream.current ? (
-              <video ref={localVideoRef} autoPlay muted />
-            ) : (
-              <S.ErrorOverlay>No Video Stream Available</S.ErrorOverlay>
-            )}
-          </S.LocalVideoContainer>
+              setLocalVideoPosition({ x: clientX - dragStart.x, y: clientY - dragStart.y });
+            }
+          }}
+        >
+          <video ref={localVideoRef} autoPlay muted />
+        </S.LocalVideoContainer>
+      </S.MainContent>
 
-          <S.UserListSection>
-          <h3>Available Users</h3>
-            <S.UserList>
-              {userList.length > 0 ? (
-                userList.map((user) => (
-                  <S.UserListItem
-                    key={user}
-                    onClick={() => setTargetSocketId(user)}
-                    $isConnected={connectedUsers.includes(user)}
-                  >
-                    {user} {connectedUsers.includes(user) && "(Connected)"}
-                  </S.UserListItem>
-                ))
-              ) : (
-                <div>No users available</div>
-              )}
-            </S.UserList>
-          </S.UserListSection>
-
-          
-
-          <S.ControlBar>
-            <S.ControlGroup>
-              <S.ControlButton onClick={toggleCamera}>
-                {isCameraOn ? <BsCameraVideoFill /> : <BsCameraVideoOffFill />}
-              </S.ControlButton>
-              <S.ControlButton onClick={toggleMic}>
-                {isMicOn ? <BsFillMicFill /> : <BsFillMicMuteFill />}
-              </S.ControlButton>
-              <S.ControlButton onClick={() => setIsChatOpen(!isChatOpen)}>
-                <BsFillChatFill />
-              </S.ControlButton>
-              <S.LikeButton onClick={() => setIsLiked(!isLiked)}>
-                <BsHeartFill />
-              </S.LikeButton>
-            </S.ControlGroup>
-          </S.ControlBar>
-        </S.MainContent>
-      </S.VideoSection>
-
-      
+      <S.UserListSection>
+        <h3>Available Users</h3>
+        <S.UserList>
+          {userList.length > 0 ? (
+            userList.map((user) => (
+              <S.UserListItem
+                key={user}
+                onClick={() => setTargetSocketId(user)}
+                $isConnected={connectedUsers.includes(user)}
+              >
+                {user} {connectedUsers.includes(user) && "(Connected)"}
+              </S.UserListItem>
+            ))
+          ) : (
+            <div>No users available</div>
+          )}
+        </S.UserList>
+        <S.CallButton onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
+          Start Call
+        </S.CallButton>
+      </S.UserListSection>
     </S.Container>
   );
 };
