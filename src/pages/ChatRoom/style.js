@@ -30,19 +30,21 @@ export const MainContent = styled.div`
   padding: 24px;
 `;
 
+
 export const RemoteVideoContainer = styled.div`
-  width: 80%;
-  height: 80%;
-  background: #1e293b;
-  border-radius: 24px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  flex: 2;
+  max-width: 70%;
+  max-height: 70%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 
   video {
-    width: 80%;
-    height: 80%;
-    object-fit: cover;
+    width: 100%;
+    height: auto;
+    max-height: 70vh; /* 화면 높이 제한 */
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   }
 `;
 
@@ -61,35 +63,16 @@ export const TimeDisplay = styled.div`
 `;
 
 export const LocalVideoContainer = styled.div`
-  position: absolute;
-  top: ${(props) => props.$position.y}px;
-  left: ${(props) => props.$position.x}px;
-  width: 240px;
-  height: 135px;
-  background: #1e293b;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: ${(props) =>
-    props.$isDragging
-      ? "0 12px 36px rgba(0, 0, 0, 0.3)"
-      : "0 8px 24px rgba(0, 0, 0, 0.2)"};
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  cursor: ${(props) => (props.$isDragging ? "grabbing" : "grab")};
-  user-select: none;
-  touch-action: none;
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
-  transform: ${(props) => (props.$isDragging ? "scale(1.02)" : "scale(1)")};
-  will-change: transform;
-
-  &:hover {
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
-  }
+  flex: 1;
+  max-width: 25%;
+  max-height: 25%;
+  position: relative;
 
   video {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    pointer-events: none;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   }
 `;
 
