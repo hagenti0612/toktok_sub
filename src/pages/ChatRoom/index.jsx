@@ -7,8 +7,6 @@ import {
   BsFillMicMuteFill,
   BsFillChatFill,
   BsHeartFill,
-  BsXLg,
-  BsSendFill,
 } from "react-icons/bs";
 import * as S from "./style";
 import io from "socket.io-client";
@@ -25,17 +23,14 @@ const ChatRoom = () => {
   const [localVideoPosition, setLocalVideoPosition] = useState({ x: 40, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [userList, setUserList] = useState([]);
+  const [connectedUsers, setConnectedUsers] = useState([]);
+  const [targetSocketId, setTargetSocketId] = useState(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [mediaError, setMediaError] = useState("");
-  const [connectedUsers, setConnectedUsers] = useState([]);
-  const [targetSocketId, setTargetSocketId] = useState(null);
-  const [userList, setUserList] = useState([]);
 
   const config = {
     iceServers: [
@@ -95,7 +90,7 @@ const ChatRoom = () => {
 
         stream.getTracks().forEach((track) => peerConnection.current.addTrack(track, stream));
       } catch (error) {
-        setMediaError("Unable to access camera or microphone");
+        console.error("Unable to access camera or microphone:", error);
       }
     }
   };
@@ -191,6 +186,24 @@ const ChatRoom = () => {
           </S.ControlBar>
         </S.MainContent>
       </S.VideoSection>
+
+      <S.UserListSection>
+        <h3>Available Users</h3>
+        <S.UserList>
+          {userList.map((userId) => (
+            <S.UserListItem
+              key={userId}
+              onClick={() => !connectedUsers.includes(userId) && setTargetSocketId(userId)}
+              $isConnected={connectedUsers.includes(userId)}
+            >
+              {userId} {connectedUsers.includes(userId) && "(Connected)"}
+            </S.UserListItem>
+          ))}
+        </S.UserList>
+        <S.CallButton onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
+          Start Call
+        </S.CallButton>
+      </S.UserListSection>
     </S.Container>
   );
 };
