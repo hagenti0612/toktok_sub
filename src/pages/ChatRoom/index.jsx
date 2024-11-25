@@ -150,8 +150,8 @@ const ChatRoom = () => {
           </S.RemoteVideoContainer>
 
           <S.LocalVideoContainer
-            $position={localVideoPosition}
-            $isDragging={isDragging}
+            $position={localVideoPosition || { x: 40, y: 40 }}
+            $isDragging={isDragging || false}
             onMouseDown={(e) => {
               const { clientX, clientY } = e;
               setIsDragging(true);
@@ -165,7 +165,11 @@ const ChatRoom = () => {
               }
             }}
           >
-            <video ref={localVideoRef} autoPlay muted />
+            {localStream.current ? (
+              <video ref={localVideoRef} autoPlay muted />
+            ) : (
+              <S.ErrorOverlay>No Video Stream Available</S.ErrorOverlay>
+            )}
           </S.LocalVideoContainer>
 
           <S.ControlBar>
