@@ -22,6 +22,34 @@ const ChatRoom = () => {
       setUserList(users || []);
     });
 
+    // Offer 수신
+    socket.on("offer", async ({ sdp, caller }) => {
+      if (!peerConnection.current) createPeerConnection(caller);
+
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+
+      // 연결된 유저 정보 추가
+      setConnectedUsers((prev) => [...prev, caller]);
+
+      socket.emit("answer", { sdp: answer, target: caller });
+    });
+
+    // Answer 수신
+    socket.on("answer", async ({ sdp }) => {
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      }
+    });
+
+    // ICE Candidate 수신
+    socket.on("candidate", ({ candidate }) => {
+      if (peerConnection.current) {
+        peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
     // 주기적으로 유저 목록 갱신 요청
     const fetchUsers = () => socket.emit("getUsers");
     fetchUsers();
@@ -29,7 +57,10 @@ const ChatRoom = () => {
 
     return () => {
       clearInterval(intervalId); // 정리
-      socket.off("userList"); // 이벤트 제거
+      socket.off("userList");
+      socket.off("offer");
+      socket.off("answer");
+      socket.off("candidate");
     };
   }, []);
 
@@ -56,30 +87,22 @@ const ChatRoom = () => {
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
-    socket.emit("offer", { sdp: offer, target: targetSocketId });
-  };
+    // 연결된 유저 정보 추가
+    setConnectedUsers((prev) => [...prev, targetSocketId]);
 
-  const config = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      {
-        urls: 'turn:your-turn-server.com:3478',
-        username: 'your-username',
-        credential: 'your-credential',
-      },
-    ],
+    socket.emit("offer", { sdp: offer, target: targetSocketId });
   };
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection({
       iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      {
-        urls: 'turn:your-turn-server.com:3478',
-        username: 'your-username',
-        credential: 'your-credential',
-      },
-    ],
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: 'turn:your-turn-server.com:3478',
+          username: 'your-username',
+          credential: 'your-credential',
+        },
+      ],
     });
 
     pc.onicecandidate = (event) => {
@@ -89,7 +112,12 @@ const ChatRoom = () => {
     };
 
     pc.ontrack = (event) => {
-      remoteVideoRef.current.srcObject = event.streams[0];
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+        remoteVideoRef.current.play().catch((error) => {
+          console.error("Error playing remote video:", error);
+        });
+      }
     };
 
     peerConnection.current = pc;
