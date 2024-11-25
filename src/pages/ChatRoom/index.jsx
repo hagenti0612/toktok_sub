@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as S from "./style";
-import { getSocket } from "./socket"; // 소켓 가져오기
+import { getSocket } from "../../env/socket"; // 소켓 가져오기
 
 const ChatRoom = () => {
   const localVideoRef = useRef(null);
