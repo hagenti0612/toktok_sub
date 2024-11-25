@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as S from "./style";
-import socket from "../../env/socket"; // 소켓 가져오기
+import { getSocket } from "./socket"; // 소켓 가져오기
 
 const ChatRoom = () => {
-  const [userList, setUserList] = useState([]);
-  const [targetSocketId, setTargetSocketId] = useState(null);
-  const [connectedUsers, setConnectedUsers] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [localVideoPosition, setLocalVideoPosition] = useState({ x: 40, y: 40 });
-
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localStream = useRef(null);
   const peerConnection = useRef(null);
+
+  const [userList, setUserList] = useState([]);
+  const [targetSocketId, setTargetSocketId] = useState(null);
+  const [connectedUsers, setConnectedUsers] = useState([]);
+  const socket = getSocket(); // 단일 소켓 인스턴스 사용
 
   useEffect(() => {
     // 소켓 이벤트 등록
@@ -21,7 +20,7 @@ const ChatRoom = () => {
     socket.on("answer", handleAnswer);
     socket.on("candidate", handleCandidate);
 
-    // 유저 목록 갱신 주기적 요청
+    // 유저 목록 주기적 요청
     const fetchUsers = () => socket.emit("getUsers");
     fetchUsers();
     const intervalId = setInterval(fetchUsers, 5000);
@@ -33,7 +32,7 @@ const ChatRoom = () => {
       socket.off("answer");
       socket.off("candidate");
     };
-  }, []);
+  }, [socket]);
 
   const handleOffer = async ({ sdp, caller }) => {
     if (!peerConnection.current) createPeerConnection(caller);
@@ -115,26 +114,7 @@ const ChatRoom = () => {
         <S.RemoteVideoContainer>
           <video ref={remoteVideoRef} playsInline autoPlay />
         </S.RemoteVideoContainer>
-        <S.LocalVideoContainer
-          $position={localVideoPosition}
-          $isDragging={isDragging}
-          onMouseDown={(e) => {
-            setIsDragging(true);
-            setLocalVideoPosition({
-              x: e.clientX - localVideoRef.current.offsetLeft,
-              y: e.clientY - localVideoRef.current.offsetTop,
-            });
-          }}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseMove={(e) => {
-            if (isDragging) {
-              setLocalVideoPosition({
-                x: e.clientX,
-                y: e.clientY,
-              });
-            }
-          }}
-        >
+        <S.LocalVideoContainer>
           <video ref={localVideoRef} playsInline autoPlay muted />
         </S.LocalVideoContainer>
         <S.UserListSection>
@@ -157,9 +137,6 @@ const ChatRoom = () => {
           <S.CallButton onClick={startCall} disabled={!targetSocketId}>
             Start Call
           </S.CallButton>
-          <S.RefreshButton onClick={() => socket.emit("getUsers")}>
-            Refresh Users
-          </S.RefreshButton>
         </S.UserListSection>
       </S.MainContent>
     </S.Container>

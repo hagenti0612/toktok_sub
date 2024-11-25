@@ -31,8 +31,8 @@ export const MainContent = styled.div`
 `;
 
 export const RemoteVideoContainer = styled.div`
-  width: 100%;
-  height: 100%;
+  width: 80%;
+  height: 80%;
   background: #1e293b;
   border-radius: 24px;
   overflow: hidden;
@@ -40,8 +40,8 @@ export const RemoteVideoContainer = styled.div`
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 
   video {
-    width: 100%;
-    height: 100%;
+    width: 80%;
+    height: 80%;
     object-fit: cover;
   }
 `;
