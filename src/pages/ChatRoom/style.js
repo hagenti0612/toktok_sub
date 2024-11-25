@@ -369,7 +369,45 @@ export const SendButton = styled.button`
   }
 `;
 
-// UserListSection 정의 추가
+
+export const CallButton = styled.button`
+  padding: 10px 15px;
+  margin-top: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #0056b3;
+  }
+`;
+
+
+export const RefreshButton = styled.button`
+  padding: 10px 15px;
+  margin-top: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #218838;
+  }
+
+  &:active {
+    background-color: #1e7e34;
+  }
+`;
+
 export const UserListSection = styled.div`
   margin: 20px 0;
   padding: 10px;
@@ -395,24 +433,5 @@ export const UserListItem = styled.li`
 
   &:hover {
     background-color: ${({ $isConnected }) => ($isConnected ? "#ddd" : "#f0f0f0")};
-  }
-`;
-
-export const CallButton = styled.button`
-  padding: 10px 15px;
-  margin-top: 10px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-  }
-
-  &:hover:not(:disabled) {
-    background-color: #0056b3;
   }
 `;
