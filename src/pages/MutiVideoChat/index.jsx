@@ -1,8 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
-//const socket = io('https://10.80.163.113:3001/');
-//const socket = io('https://192.168.0.123:3001/');
 const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
 
 function MultiVideoPage() {
@@ -37,6 +35,10 @@ function MultiVideoPage() {
       }
 
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+      // 로컬 스트림 추가
+      await setupLocalStream();
+
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
       socket.emit('answer', { sdp: answer, target: data.caller });
@@ -71,6 +73,30 @@ function MultiVideoPage() {
       }
     };
   }, []);
+
+  const setupLocalStream = async () => {
+    if (!localStream.current) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+
+        localVideoRef.current.srcObject = stream;
+        localStream.current = stream;
+
+        // PeerConnection에 로컬 트랙 추가
+        stream.getTracks().forEach((track) => {
+          if (peerConnection.current) {
+            peerConnection.current.addTrack(track, stream);
+          }
+        });
+      } catch (error) {
+        console.error('Error accessing local media:', error);
+        alert('Could not access your camera and microphone. Please check your browser settings.');
+      }
+    }
+  };
 
   const createPeerConnection = (userId) => {
     const pc = new RTCPeerConnection(config);
@@ -126,17 +152,7 @@ function MultiVideoPage() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-
-      localVideoRef.current.srcObject = stream;
-      localStream.current = stream;
-
-      stream.getTracks().forEach((track) => {
-        peerConnection.current.addTrack(track, stream);
-      });
+      await setupLocalStream();
 
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
@@ -145,8 +161,7 @@ function MultiVideoPage() {
 
       setConnectedUsers((prev) => [...prev, targetSocketId]); // 연결된 유저 추가
     } catch (error) {
-      console.error('Error accessing media devices:', error);
-      alert('Could not access your camera and microphone. Please check your browser settings.');
+      console.error('Error creating offer:', error);
     }
   };
 
@@ -220,3 +235,4 @@ function MultiVideoPage() {
 }
 
 export default MultiVideoPage;
+
