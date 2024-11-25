@@ -17,9 +17,9 @@ function MultiVideoPage() {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       {
-        urls: 'turn:43.203.120.136:3478',
-        username: 'toktok',
-        credential: 'toktok1234!',
+        urls: 'turn:your-turn-server.com:3478',
+        username: 'your-username',
+        credential: 'your-credential',
       },
     ],
   };

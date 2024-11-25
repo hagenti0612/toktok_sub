@@ -11,6 +11,7 @@ import {
 import * as S from "./style";
 import io from "socket.io-client";
 
+
 const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
 
 const ChatRoom = () => {
@@ -31,6 +32,7 @@ const ChatRoom = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  
 
   const config = {
     iceServers: [
@@ -43,6 +45,11 @@ const ChatRoom = () => {
     ],
   };
 
+  React.useEffect(() => {
+    // 예제 데이터: 실제 소켓 통신 사용
+    setUserList(["user1", "user2", "user3"]);
+  }, []);
+  
   useEffect(() => {
     socket.on("userList", (users) => setUserList(users));
     socket.on("offer", handleOffer);
@@ -173,26 +180,25 @@ const ChatRoom = () => {
           </S.LocalVideoContainer>
 
           <S.UserListSection>
-            <h3>Available Users</h3>
+          <h3>Available Users</h3>
             <S.UserList>
               {userList.length > 0 ? (
-                userList.map((userId) => (
+                userList.map((user) => (
                   <S.UserListItem
-                    key={userId}
-                    onClick={() => !connectedUsers.includes(userId) && setTargetSocketId(userId)}
-                    $isConnected={connectedUsers.includes(userId)}
+                    key={user}
+                    onClick={() => setTargetSocketId(user)}
+                    $isConnected={connectedUsers.includes(user)}
                   >
-                    {userId} {connectedUsers.includes(userId) && "(Connected)"}
+                    {user} {connectedUsers.includes(user) && "(Connected)"}
                   </S.UserListItem>
                 ))
               ) : (
                 <div>No users available</div>
               )}
             </S.UserList>
-            <S.CallButton onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
-              Start Call
-            </S.CallButton>
           </S.UserListSection>
+
+          
 
           <S.ControlBar>
             <S.ControlGroup>
