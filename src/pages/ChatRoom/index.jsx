@@ -1,62 +1,33 @@
 import React, { useState, useEffect, useRef } from "react";
-import * as S from "./style"; // 스타일 컴포넌트 가져오기
-import io from "socket.io-client";
-
-const socket = io('https://substantial-adore-imds-2813ad36.koyeb.app', { secure: true });
+import * as S from "./style";
+import socket from "../../env/socket"; // 소켓 가져오기
 
 const ChatRoom = () => {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const localStream = useRef(null);
-  const peerConnection = useRef(null);
-
   const [userList, setUserList] = useState([]);
   const [targetSocketId, setTargetSocketId] = useState(null);
   const [connectedUsers, setConnectedUsers] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [localVideoPosition, setLocalVideoPosition] = useState({ x: 40, y: 40 });
 
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStream = useRef(null);
+  const peerConnection = useRef(null);
+
   useEffect(() => {
-    // 서버에서 유저 목록 수신
-    socket.on("userList", (users) => {
-      setUserList(users || []);
-    });
+    // 소켓 이벤트 등록
+    socket.on("userList", (users) => setUserList(users || []));
+    socket.on("offer", handleOffer);
+    socket.on("answer", handleAnswer);
+    socket.on("candidate", handleCandidate);
 
-    // Offer 수신
-    socket.on("offer", async ({ sdp, caller }) => {
-      if (!peerConnection.current) createPeerConnection(caller);
-
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
-
-      // 연결된 유저 정보 추가
-      setConnectedUsers((prev) => [...prev, caller]);
-
-      socket.emit("answer", { sdp: answer, target: caller });
-    });
-
-    // Answer 수신
-    socket.on("answer", async ({ sdp }) => {
-      if (peerConnection.current) {
-        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
-      }
-    });
-
-    // ICE Candidate 수신
-    socket.on("candidate", ({ candidate }) => {
-      if (peerConnection.current) {
-        peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    });
-
-    // 주기적으로 유저 목록 갱신 요청
+    // 유저 목록 갱신 주기적 요청
     const fetchUsers = () => socket.emit("getUsers");
     fetchUsers();
     const intervalId = setInterval(fetchUsers, 5000);
 
     return () => {
-      clearInterval(intervalId); // 정리
+      clearInterval(intervalId); // 타이머 정리
       socket.off("userList");
       socket.off("offer");
       socket.off("answer");
@@ -64,8 +35,27 @@ const ChatRoom = () => {
     };
   }, []);
 
-  const refreshUserList = () => {
-    socket.emit("getUsers");
+  const handleOffer = async ({ sdp, caller }) => {
+    if (!peerConnection.current) createPeerConnection(caller);
+
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer = await peerConnection.current.createAnswer();
+    await peerConnection.current.setLocalDescription(answer);
+
+    setConnectedUsers((prev) => [...prev, caller]);
+    socket.emit("answer", { sdp: answer, target: caller });
+  };
+
+  const handleAnswer = async ({ sdp }) => {
+    if (peerConnection.current) {
+      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(sdp));
+    }
+  };
+
+  const handleCandidate = ({ candidate }) => {
+    if (peerConnection.current) {
+      peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+    }
   };
 
   const startCall = async () => {
@@ -74,9 +64,7 @@ const ChatRoom = () => {
       return;
     }
 
-    if (!peerConnection.current) {
-      createPeerConnection(targetSocketId);
-    }
+    if (!peerConnection.current) createPeerConnection(targetSocketId);
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     localStream.current = stream;
@@ -87,9 +75,7 @@ const ChatRoom = () => {
     const offer = await peerConnection.current.createOffer();
     await peerConnection.current.setLocalDescription(offer);
 
-    // 연결된 유저 정보 추가
     setConnectedUsers((prev) => [...prev, targetSocketId]);
-
     socket.emit("offer", { sdp: offer, target: targetSocketId });
   };
 
@@ -171,7 +157,9 @@ const ChatRoom = () => {
           <S.CallButton onClick={startCall} disabled={!targetSocketId}>
             Start Call
           </S.CallButton>
-          <S.RefreshButton onClick={refreshUserList}>Refresh Users</S.RefreshButton>
+          <S.RefreshButton onClick={() => socket.emit("getUsers")}>
+            Refresh Users
+          </S.RefreshButton>
         </S.UserListSection>
       </S.MainContent>
     </S.Container>
