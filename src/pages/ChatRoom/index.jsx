@@ -172,6 +172,28 @@ const ChatRoom = () => {
             )}
           </S.LocalVideoContainer>
 
+          <S.UserListSection>
+            <h3>Available Users</h3>
+            <S.UserList>
+              {userList.length > 0 ? (
+                userList.map((userId) => (
+                  <S.UserListItem
+                    key={userId}
+                    onClick={() => !connectedUsers.includes(userId) && setTargetSocketId(userId)}
+                    $isConnected={connectedUsers.includes(userId)}
+                  >
+                    {userId} {connectedUsers.includes(userId) && "(Connected)"}
+                  </S.UserListItem>
+                ))
+              ) : (
+                <div>No users available</div>
+              )}
+            </S.UserList>
+            <S.CallButton onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
+              Start Call
+            </S.CallButton>
+          </S.UserListSection>
+
           <S.ControlBar>
             <S.ControlGroup>
               <S.ControlButton onClick={toggleCamera}>
@@ -191,23 +213,7 @@ const ChatRoom = () => {
         </S.MainContent>
       </S.VideoSection>
 
-      <S.UserListSection>
-        <h3>Available Users</h3>
-        <S.UserList>
-          {userList.map((userId) => (
-            <S.UserListItem
-              key={userId}
-              onClick={() => !connectedUsers.includes(userId) && setTargetSocketId(userId)}
-              $isConnected={connectedUsers.includes(userId)}
-            >
-              {userId} {connectedUsers.includes(userId) && "(Connected)"}
-            </S.UserListItem>
-          ))}
-        </S.UserList>
-        <S.CallButton onClick={startCall} disabled={!targetSocketId || connectedUsers.includes(targetSocketId)}>
-          Start Call
-        </S.CallButton>
-      </S.UserListSection>
+      
     </S.Container>
   );
 };
