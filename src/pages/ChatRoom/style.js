@@ -419,4 +419,10 @@ export const UserListItem = styled.li`
   }
 `;
 
+export const UserIdDisplay = styled.div`
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+`;
 

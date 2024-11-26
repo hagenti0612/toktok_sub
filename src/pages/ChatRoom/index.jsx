@@ -3,6 +3,7 @@ import * as S from "./style";
 import socket from "../../env/socket"; // 소켓 가져오기
 
 const ChatRoom = () => {
+  const [userId, setUserId] = useState(""); // 유저 ID 상태
   const [userList, setUserList] = useState([]);
   const [targetSocketId, setTargetSocketId] = useState(null);
   const [connectedUsers, setConnectedUsers] = useState([]);
@@ -20,6 +21,11 @@ const ChatRoom = () => {
     socket.on("offer", handleOffer);
     socket.on("answer", handleAnswer);
     socket.on("candidate", handleCandidate);
+    // 서버로부터 유저 ID 수신
+    socket.on("yourId", (id) => {
+      console.log("Your user ID:", id);
+      setUserId(id); // 유저 ID 상태 설정
+    });
 
     // 유저 목록 갱신 주기적 요청
     const fetchUsers = () => socket.emit("getUsers");
@@ -28,6 +34,7 @@ const ChatRoom = () => {
 
     return () => {
       clearInterval(intervalId); // 타이머 정리
+      socket.off("yourId");
       socket.off("userList");
       socket.off("offer");
       socket.off("answer");
@@ -87,7 +94,7 @@ const ChatRoom = () => {
           urls: 'turn:43.203.120.136:3478',
           username: 'toktok',
           credential: 'toktok1234!',
-          
+
         },
       ],
     });
